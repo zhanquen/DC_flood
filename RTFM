@@ -1,0 +1,4 @@
+configurations on cluster
+
+conda create -n ml_env python=3.8
+conda activate ml_env

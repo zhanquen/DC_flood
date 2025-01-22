@@ -76,6 +76,40 @@ def raw_to_torch(meshes : List[meshio.Mesh]) -> List[torch.Tensor]:
     X_nodes = torch.stack(X_nodes, dim=0)  # [num_timesteps-1, num_nodes, num_features]  at t
     return X_nodes, X_edges
 
+def get_X_y_acc(mesh_id: str, time_step: int) -> torch.Tensor:
+    """
+    Retrieve the node features, edges, and output features at a specific timestep for a given mesh.
+
+    Parameters:
+    mesh_id (str): Identifier for the mesh file to load.
+    time_step (int): The timestep for which to retrieve the data.
+
+    Returns:
+    tuple: A tuple containing:
+        - X_nodes (torch.Tensor): The input features of the nodes at the specified timestep.
+        - X_edges (torch.Tensor): The edges of the mesh, invariant of the timestep.
+        - Y (torch.Tensor): The output features for each node at the next timestep.
+    """
+    data = torch.load(CWD / f"data_cleaned/mesh_{mesh_id}.pth")
+    X_nodes = data['nodes']
+    vitesses= X_nodes[time_step,:,3:6]
+    accelerations = torch.zeros_like(vitesses)
+    accelerations[:,:,:] =  (X_nodes[time_step,:,3:6] -  X_nodes[time_step-1,:,3:6])/0.01
+    X_nodes_t= X_nodes[time_step,:,:]
+    time_steps=torch.full((X_nodes_t.shape[0], 1), time_step)
+    X_nodes_t = torch.cat([X_nodes_t, accelerations,time_steps ], dim=-1)
+    #time_tensor = torch.full((X_nodes.shape[0], X_nodes.shape[1], 1), time_step)
+    #X_nodes = torch.cat([X_nodes, time_tensor,accelerations], dim=-1)
+    X_edges = data['edges']
+    y = X_nodes[time_step + 1][:,-4:]
+    return X_nodes_t, X_edges, y
+    try:
+        X_edges = data['edges']
+        y = X_nodes[time_step + 1][:,-4:]
+        return X_nodes_t, X_edges, y
+    except IndexError:
+        print(f"Time step {time_step} is out of range for mesh {mesh_id}.")
+
 def get_X_y(mesh_id: str, time_step: int) -> torch.Tensor:
     """
     Retrieve the node features, edges, and output features at a specific timestep for a given mesh.

@@ -76,19 +76,47 @@ def raw_to_torch(meshes : List[meshio.Mesh]) -> List[torch.Tensor]:
     X_nodes = torch.stack(X_nodes, dim=0)  # [num_timesteps-1, num_nodes, num_features]  at t
     return X_nodes, X_edges
 
+def get_X_y_acc_type(mesh_id: str, time_step: int) -> torch.Tensor:
+    """
+    Extracts and processes node and edge data from a preprocessed mesh file for a given time step.
+    Args:
+        mesh_id (str): Identifier for the mesh file to load.
+        time_step (int): The specific time step to extract data for.
+    Returns:
+        Tuple[torch.Tensor, torch.Tensor, torch.Tensor]: 
+            - X_nodes_t: Processed node features tensor for the given time step, including velocities, accelerations, time step, and wall mask.
+            - X_edges: Edge features tensor.
+            - y: Target tensor for the next time step, including velocities and additional features.
+    """
+    data = torch.load(CWD / f"data_cleaned/mesh_{mesh_id}.pth")
+    X_nodes = data['nodes']
+    print(X_nodes.shape)
+    X_nodes_t= X_nodes[time_step,:,:]
+    vitesses= X_nodes[time_step,:,3:6]
+    accelerations = torch.zeros_like(vitesses)
+    accelerations[:,:] =  (X_nodes[time_step,:,3:6] -  X_nodes[time_step-1,:,3:6])/0.01
+    
+    time_steps=torch.full((X_nodes_t.shape[0], 1), time_step)
+    walls_mask = torch.norm(X_nodes_t[:,3:6], p=2, dim=1, keepdim=True) > 1e-10
+    X_nodes_t = torch.cat([X_nodes_t, accelerations, time_steps, walls_mask], dim=-1)
+    #time_tensor = torch.full((X_nodes.shape[0], X_nodes.shape[1], 1), time_step)
+    #X_nodes = torch.cat([X_nodes, time_tensor,accelerations], dim=-1)
+    X_edges = data['edges']
+    y = X_nodes[time_step + 1][:,3:7]
+    return X_nodes_t, X_edges, y
+
+
 def get_X_y_acc(mesh_id: str, time_step: int) -> torch.Tensor:
     """
-    Retrieve the node features, edges, and output features at a specific timestep for a given mesh.
-
-    Parameters:
-    mesh_id (str): Identifier for the mesh file to load.
-    time_step (int): The timestep for which to retrieve the data.
-
+    Extracts node features, edge features, and target values for a given mesh and time step.
+    Args:
+        mesh_id (str): Identifier for the mesh.
+        time_step (int): The specific time step to extract data from.
     Returns:
-    tuple: A tuple containing:
-        - X_nodes (torch.Tensor): The input features of the nodes at the specified timestep.
-        - X_edges (torch.Tensor): The edges of the mesh, invariant of the timestep.
-        - Y (torch.Tensor): The output features for each node at the next timestep.
+        tuple: A tuple containing:
+            - X_nodes_t (torch.Tensor): Node features at the given time step, including velocities, accelerations, and time step.
+            - X_edges (torch.Tensor): Edge features of the mesh.
+            - y (torch.Tensor): Target values for the next time step.
     """
     data = torch.load(CWD / f"data_cleaned/mesh_{mesh_id}.pth")
     X_nodes = data['nodes']

@@ -7,6 +7,7 @@ from tqdm import tqdm
 from mesh_handler import xdmf_to_meshes
 
 CWD = Path.cwd()
+DATA_DIR = CWD / "data_cleaned"
 
 def torch_input_nodes(mesh: meshio.Mesh) -> torch.Tensor:
     """
@@ -76,7 +77,7 @@ def raw_to_torch(meshes : List[meshio.Mesh]) -> List[torch.Tensor]:
     X_nodes = torch.stack(X_nodes, dim=0)  # [num_timesteps-1, num_nodes, num_features]  at t
     return X_nodes, X_edges
 
-def get_X_y_acc_type(mesh_id: str, time_step: int) -> torch.Tensor:
+def get_X_y_acc_type(mesh_id: str, time_step: int, data_dir=DATA_DIR) -> torch.Tensor:
     """
     Extracts and processes node and edge data from a preprocessed mesh file for a given time step.
     Args:
@@ -88,7 +89,7 @@ def get_X_y_acc_type(mesh_id: str, time_step: int) -> torch.Tensor:
             - X_edges: Edge features tensor.
             - y: Target tensor for the next time step, including velocities and additional features.
     """
-    data = torch.load(CWD / f"data_cleaned/mesh_{mesh_id}.pth")
+    data = torch.load(data_dir / f"mesh_{mesh_id}.pth")
     X_nodes = data['nodes']
     print(X_nodes.shape)
     X_nodes_t= X_nodes[time_step,:,:]
@@ -106,7 +107,7 @@ def get_X_y_acc_type(mesh_id: str, time_step: int) -> torch.Tensor:
     return X_nodes_t, X_edges, y
 
 
-def get_X_y_acc(mesh_id: str, time_step: int) -> torch.Tensor:
+def get_X_y_acc(mesh_id: str, time_step: int, data_dir=DATA_DIR) -> torch.Tensor:
     """
     Extracts node features, edge features, and target values for a given mesh and time step.
     Args:
@@ -118,7 +119,7 @@ def get_X_y_acc(mesh_id: str, time_step: int) -> torch.Tensor:
             - X_edges (torch.Tensor): Edge features of the mesh.
             - y (torch.Tensor): Target values for the next time step.
     """
-    data = torch.load(CWD / f"data_cleaned/mesh_{mesh_id}.pth")
+    data = torch.load(data_dir / f"mesh_{mesh_id}.pth")
     X_nodes = data['nodes']
     print(X_nodes.shape)
     X_nodes_t= X_nodes[time_step,:,:]
@@ -134,7 +135,7 @@ def get_X_y_acc(mesh_id: str, time_step: int) -> torch.Tensor:
     y = X_nodes[time_step + 1][:,3:7]
     return X_nodes_t, X_edges, y
    
-def get_X_y(mesh_id: str, time_step: int) -> torch.Tensor:
+def get_X_y(mesh_id: str, time_step: int, data_dir=DATA_DIR) -> torch.Tensor:
     """
     Retrieve the node features, edges, and output features at a specific timestep for a given mesh.
 
@@ -148,7 +149,7 @@ def get_X_y(mesh_id: str, time_step: int) -> torch.Tensor:
         - X_edges (torch.Tensor): The edges of the mesh, invariant of the timestep.
         - Y (torch.Tensor): The output features for each node at the next timestep.
     """
-    data = torch.load(CWD / f"data_cleaned/mesh_{mesh_id}.pth")
+    data = torch.load(data_dir / f"mesh_{mesh_id}.pth")
     X_nodes = data['nodes']
     time_tensor = torch.full((X_nodes.shape[0], X_nodes.shape[1], 1), time_step)
     X_nodes = torch.cat([X_nodes, time_tensor], dim=-1)

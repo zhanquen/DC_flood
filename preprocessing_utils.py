@@ -97,6 +97,8 @@ def compute_edge_weights(edge_index, X):
 
     return edge_weights
 
+
+
 if __name__ == "__main__":
     folder_path = CWD / "4Students_AnXplore03"
     xdmf_files = list(folder_path.glob("*.xdmf"))

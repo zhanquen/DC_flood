@@ -103,15 +103,9 @@ def get_X_y_acc(mesh_id: str, time_step: int) -> torch.Tensor:
     #time_tensor = torch.full((X_nodes.shape[0], X_nodes.shape[1], 1), time_step)
     #X_nodes = torch.cat([X_nodes, time_tensor,accelerations], dim=-1)
     X_edges = data['edges']
-    y = X_nodes[time_step + 1][:,-4:]
+    y = X_nodes[time_step + 1][:,3:7]
     return X_nodes_t, X_edges, y
-    try:
-        X_edges = data['edges']
-        y = X_nodes[time_step + 1][:,-4:]
-        return X_nodes_t, X_edges, y
-    except IndexError:
-        print(f"Time step {time_step} is out of range for mesh {mesh_id}.")
-
+   
 def get_X_y(mesh_id: str, time_step: int) -> torch.Tensor:
     """
     Retrieve the node features, edges, and output features at a specific timestep for a given mesh.
@@ -132,7 +126,7 @@ def get_X_y(mesh_id: str, time_step: int) -> torch.Tensor:
     X_nodes = torch.cat([X_nodes, time_tensor], dim=-1)
     X_edges = data['edges']
     try:
-        y = X_nodes[time_step + 1][:,-4:]
+        y = X_nodes[time_step + 1][:,3:7]
         return X_nodes[time_step], X_edges, y
     except IndexError:
         print(f"Time step {time_step} is out of range for mesh {mesh_id}.")

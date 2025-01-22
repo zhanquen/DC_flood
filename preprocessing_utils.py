@@ -8,14 +8,35 @@ from mesh_handler import xdmf_to_meshes
 
 CWD = Path.cwd()
 
-def torch_input_nodes(mesh : meshio.Mesh) -> torch.Tensor:
+def torch_input_nodes(mesh: meshio.Mesh) -> torch.Tensor:
+    """
+    Converts mesh node data into a PyTorch tensor.
+
+    Parameters:
+    mesh (meshio.Mesh): A meshio Mesh object containing the mesh data.
+
+    Returns:
+    torch.Tensor: A tensor containing the concatenated node coordinates, velocity, and pressure data.
+    """
     nodes_xyz = mesh.points
     nodes_v = mesh.point_data["Vitesse"]
     nodes_P = mesh.point_data["Pression"]
     nodes_all = torch.tensor(np.hstack((nodes_xyz, nodes_v, np.expand_dims(nodes_P, axis=1))), dtype= torch.float)
     return nodes_all
 
-def torch_input_edges(mesh : meshio.Mesh) -> torch.Tensor:
+def torch_input_edges(mesh: meshio.Mesh) -> torch.Tensor:
+    """
+    Converts the tetrahedral elements of a mesh into edge indices suitable for use with PyTorch Geometric.
+
+    Parameters:
+    mesh (meshio.Mesh): The input mesh containing tetrahedral elements.
+
+    Returns:
+    torch.Tensor: A tensor of shape [2, num_edges] containing the edge indices.
+
+    Raises:
+    ValueError: If the mesh does not contain tetrahedral elements.
+    """
     if "tetra" in mesh.cells_dict:
         tetrahedrons = mesh.cells_dict["tetra"]
     else:
@@ -71,6 +92,8 @@ def get_X_y(mesh_id: str, time_step: int) -> torch.Tensor:
     """
     data = torch.load(CWD / f"data_cleaned/mesh_{mesh_id}.pth")
     X_nodes = data['nodes']
+    time_tensor = torch.full((X_nodes.shape[0], X_nodes.shape[1], 1), time_step)
+    X_nodes = torch.cat([X_nodes, time_tensor], dim=-1)
     X_edges = data['edges']
     try:
         y = X_nodes[time_step + 1][:,-4:]
@@ -80,6 +103,21 @@ def get_X_y(mesh_id: str, time_step: int) -> torch.Tensor:
     
 
 def compute_edge_weights(edge_index, X):
+    """
+    Compute the edge weights for a graph based on the Euclidean distance 
+    between source and target nodes.
+    Parameters:
+    edge_index (torch.Tensor): A tensor of shape (2, num_edges) containing 
+                               the indices of the source and target nodes 
+                               for each edge.
+    X (torch.Tensor): A tensor of shape (num_nodes, num_features) containing 
+                      the features of each node, where the first three 
+                      features are the (x, y, z) coordinates of the nodes.
+    Returns:
+    torch.Tensor: A tensor of shape (num_edges,) containing the computed 
+                  edge weights, which are the inverse of the Euclidean 
+                  distances between the source and target nodes.
+    """
     # Extraire les indices des nœuds source et cible
     source_nodes = edge_index[0]
     target_nodes = edge_index[1]
@@ -97,7 +135,63 @@ def compute_edge_weights(edge_index, X):
 
     return edge_weights
 
+def create_edges_index_dir(X_edges_undir):
+    """
+    Create a directed edges index from an undirected edges index.
 
+    This function takes an undirected edges index tensor and converts it into a directed edges index tensor by 
+    concatenating the original undirected edges with their reversed counterparts.
+
+    Parameters:
+    X_edges_undir (torch.Tensor): A tensor of shape (2, N) representing N undirected edges, where each column 
+                                  contains a pair of node indices representing an undirected edge.
+
+    Returns:
+    torch.Tensor: A tensor of shape (2, 2N) representing 2N directed edges, where the first N columns are the 
+                  original undirected edges and the next N columns are the reversed edges.
+    """
+    X_edges_dir = torch.cat([X_edges_undir, X_edges_undir[[1, 0], :]], dim=1)
+    return X_edges_dir
+
+def create_edge_attributes(X_nodes, X_edges_dir):
+    """
+    Create edge attributes for a graph based on node positions and directed edges.
+
+    Parameters:
+    X_nodes (torch.Tensor): A tensor of shape (num_nodes, num_features) containing the positions of the nodes.
+                            The first three columns are expected to be the x, y, z coordinates of the nodes.
+    X_edges_dir (tuple of torch.Tensor): A tuple containing two tensors of shape (num_edges,) representing the 
+                                         indices of the source and target nodes for each directed edge.
+
+    Returns:
+    torch.Tensor: A tensor of shape (num_edges, 4) containing the edge attributes. The first three columns 
+                  represent the normalized direction vector from the source node to the target node, and the 
+                  fourth column represents the distance between the nodes.
+    """
+    positions = X_nodes[:,0:3]
+    i, j = X_edges_dir
+    direction = positions[j,:] - positions[i,:]
+    distance = torch.norm(direction, dim=1, keepdim=True)
+    direction /= distance
+    edge_attr = torch.cat([direction, distance], dim=1)
+    return edge_attr
+
+def get_edges_dir_info(X_nodes, X_edges_undir):
+    """
+    Generates directed edges information from undirected edges and node attributes.
+
+    Parameters:
+    X_nodes (array-like): The attributes of the nodes.
+    X_edges_undir (array-like): The undirected edges.
+
+    Returns:
+    tuple: A tuple containing:
+        - edges_index_dir (array-like): The indices of the directed edges.
+        - edges_attr (array-like): The attributes of the directed edges.
+    """
+    edges_index_dir = create_edges_index_dir(X_edges_undir)
+    edges_attr = create_edge_attributes(X_nodes, edges_index_dir)
+    return edges_index_dir, edges_attr
 
 if __name__ == "__main__":
     folder_path = CWD / "4Students_AnXplore03"

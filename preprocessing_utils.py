@@ -92,10 +92,12 @@ def get_X_y_acc(mesh_id: str, time_step: int) -> torch.Tensor:
     """
     data = torch.load(CWD / f"data_cleaned/mesh_{mesh_id}.pth")
     X_nodes = data['nodes']
+    print(X_nodes.shape)
+    X_nodes_t= X_nodes[time_step,:,:]
     vitesses= X_nodes[time_step,:,3:6]
     accelerations = torch.zeros_like(vitesses)
-    accelerations[:,:,:] =  (X_nodes[time_step,:,3:6] -  X_nodes[time_step-1,:,3:6])/0.01
-    X_nodes_t= X_nodes[time_step,:,:]
+    accelerations[:,:] =  (X_nodes[time_step,:,3:6] -  X_nodes[time_step-1,:,3:6])/0.01
+    
     time_steps=torch.full((X_nodes_t.shape[0], 1), time_step)
     X_nodes_t = torch.cat([X_nodes_t, accelerations,time_steps ], dim=-1)
     #time_tensor = torch.full((X_nodes.shape[0], X_nodes.shape[1], 1), time_step)

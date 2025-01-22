@@ -85,9 +85,9 @@ def train_model(model, optimizer, mesh_ids, epochs=1000, batch_size=1, exclude_x
 
 # Train the model
 
-def evaluate_model(model, mesh_ids, batch_size=1):
+def evaluate_model(model, mesh_ids, batch_size=1, exclude_xyz=True):
     model.eval()
-    dataset = MeshDataset(mesh_ids, exclude_xyz=True)
+    dataset = MeshDataset(mesh_ids, exclude_xyz=exclude_xyz)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
     total_loss = 0

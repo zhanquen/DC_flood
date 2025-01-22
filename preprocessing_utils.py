@@ -121,7 +121,7 @@ def get_X_y_acc(mesh_id: str, time_step: int, data_dir=DATA_DIR) -> torch.Tensor
     """
     data = torch.load(data_dir / f"mesh_{mesh_id}.pth")
     X_nodes = data['nodes']
-    print(X_nodes.shape)
+    # print(X_nodes.shape)
     X_nodes_t= X_nodes[time_step,:,:]
     vitesses= X_nodes[time_step,:,3:6]
     accelerations = torch.zeros_like(vitesses)

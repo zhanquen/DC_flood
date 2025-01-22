@@ -53,10 +53,10 @@ class MeshDataset(Dataset):
         mesh_id = self.mesh_ids[mesh_idx]
         
         X_nodes, X_edges, y = get_X_y(mesh_id, time_step)
+        edge_weights = compute_edge_weights(X_edges, X_nodes)
         if self.exclude_xyz:
             X_nodes = X_nodes[:, 3:]  # Supprimer les coordonnées xyz
         
-        edge_weights = compute_edge_weights(X_edges, X_nodes)
         return X_nodes, X_edges, edge_weights, y
 
 

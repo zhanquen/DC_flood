@@ -79,6 +79,24 @@ def get_X_y(mesh_id: str, time_step: int) -> torch.Tensor:
         print(f"Time step {time_step} is out of range for mesh {mesh_id}.")
     
 
+def compute_edge_weights(edge_index, X):
+    # Extraire les indices des nœuds source et cible
+    source_nodes = edge_index[0]
+    target_nodes = edge_index[1]
+
+    # Obtenir les coordonnées des nœuds source et cible
+    source_coords = X[source_nodes,:3]  # Coordonnées (x, y, z) des nœuds source
+    target_coords = X[target_nodes,:3]  # Coordonnées (x, y, z) des nœuds cible
+
+    # Calcul de la distance euclidienne entre les nœuds source et cible
+    distances = torch.norm(source_coords - target_coords, dim=1)
+
+    # Éviter la division par zéro en ajoutant une petite valeur epsilon
+    epsilon = 1e-8
+    edge_weights = 1.0 / (distances + epsilon)
+
+    return edge_weights
+
 if __name__ == "__main__":
     folder_path = CWD / "4Students_AnXplore03"
     xdmf_files = list(folder_path.glob("*.xdmf"))

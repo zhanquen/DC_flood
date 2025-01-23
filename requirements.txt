@@ -1,1 +1,2 @@
 meshio
+torch-geometric

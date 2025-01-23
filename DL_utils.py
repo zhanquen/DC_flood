@@ -40,10 +40,9 @@ def train_test_sets(mesh_ids, test_size=0.2, random_state=42):
     return train_ids, test_ids
 
 class MeshDataset(Dataset):
-    def __init__(self, mesh_ids, exclude_xyz=True):
+    def __init__(self, mesh_ids, features_method = get_X_y):
         self.mesh_ids = mesh_ids
-        self.exclude_xyz = exclude_xyz
-
+        self.features_method = features_method
     def __len__(self):
         return len(self.mesh_ids) * 79  # 79 time steps par mesh_id
 
@@ -52,10 +51,8 @@ class MeshDataset(Dataset):
         time_step = idx % 79
         mesh_id = self.mesh_ids[mesh_idx]
         
-        X_nodes, X_edges, y = get_X_y(mesh_id, time_step)
+        X_nodes, X_edges, y = self.features_method(mesh_id, time_step)
         edge_weights = compute_edge_weights(X_edges, X_nodes)
-        if self.exclude_xyz:
-            X_nodes = X_nodes[:, 3:]  # Supprimer les coordonnées xyz
         
         return X_nodes, X_edges, edge_weights, y
 
@@ -64,8 +61,8 @@ class MeshDataset(Dataset):
 
 from tqdm import tqdm
 
-def train_model(model, optimizer, mesh_ids, epochs=1000, batch_size=1, exclude_xyz=True):
-    dataset = MeshDataset(mesh_ids, exclude_xyz)
+def train_model(model, optimizer, mesh_ids, epochs=1000, batch_size=1, features_method=get_X_y, **kwargs):
+    dataset = MeshDataset(mesh_ids, features_method = features_method) 
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
     loss_array = []
     for epoch in range(epochs):
@@ -85,9 +82,9 @@ def train_model(model, optimizer, mesh_ids, epochs=1000, batch_size=1, exclude_x
 
 # Train the model
 
-def evaluate_model(model, mesh_ids, batch_size=1, exclude_xyz=True):
+def evaluate_model(model, mesh_ids, batch_size=1 ,features_method=get_X_y, **kwargs):
     model.eval()
-    dataset = MeshDataset(mesh_ids, exclude_xyz=exclude_xyz)
+    dataset = MeshDataset(mesh_ids, features_method=features_method)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
     total_loss = 0

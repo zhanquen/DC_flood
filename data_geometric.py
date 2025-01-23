@@ -2,7 +2,7 @@ from torch_geometric.data import Data, Dataset
 from torch_geometric.loader import DataLoader
 from pathlib import Path
 import meshio
-from preprocessing_utils import get_X_y, get_X_y_acc, get_X_y_acc_type, get_edges_dir_info
+from preprocessing_utils import get_X_y_with_inflow, get_X_y_acc_type, get_edges_dir_info
 from DL_utils import train_test_sets
 import torch
 import numpy as np
@@ -17,11 +17,15 @@ def transform_acc_type(mesh_id, time_step, data_dir):
     return data
 
 def transform_acc_type_dir(mesh_id, time_step, data_dir):
-    nodes_features, edges_index , y = get_X_y_acc_type(mesh_id, time_step, data_dir)
+    nodes_features, edges_index , y = get_X_y_with_inflow(mesh_id, time_step, data_dir, replace_inflow=True)
     edges_index_dir, edge_attr = get_edges_dir_info(nodes_features, edges_index)
     data = Data(x=nodes_features[:,3:], edge_index=edges_index_dir, edge_attr=edge_attr, y=y, pos=nodes_features[:, :3])
     return data
 
+def transform_with_inflow(mesh_id, time_step, data_dir, replace=True):
+    nodes_features, edges_index , y = get_X_y_with_inflow(mesh_id, time_step, data_dir, replace_inflow=replace)
+    data = Data(x=nodes_features, edge_index=edges_index, edge_attr=None, y=y, pos=nodes_features[:, :3])
+    return data
 
 class MeshDataset_(Dataset):
     def __init__(self, src_data_dir, mesh_ids, n_times, offset=1, func_to_data=transform_acc_type):

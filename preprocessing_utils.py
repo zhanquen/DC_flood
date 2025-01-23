@@ -123,6 +123,43 @@ def get_X_y_acc_type(mesh_id: str, time_step: int, data_dir=DATA_DIR) -> torch.T
     y = X_nodes[time_step + 1][:,3:7]
     return X_nodes_t, X_edges, y
 
+def get_X_y_with_inflow(mesh_id: str, t: int, data_dir=DATA_DIR, replace_inflow=False) -> torch.Tensor:
+    """
+    Extracts and processes node and edge data from a preprocessed mesh file for a given time step.
+    Args:
+        mesh_id (str): Identifier for the mesh file to load.
+        t (int): The specific time step to extract data for.
+    Returns:
+        Tuple[torch.Tensor, torch.Tensor, torch.Tensor]: 
+            - X_nodes_t: Processed node features tensor for the given time step, including velocities, accelerations, time step, and wall mask.
+            - X_edges: Edge features tensor.
+            - y: Target tensor for the next time step, including velocities and additional features.
+    """
+    data = torch.load(data_dir / f"mesh_{mesh_id}.pth")
+    nodes_feat = data['nodes']
+    edges_index = data['edges']
+    X_init = nodes_feat[0,:,:]
+    N_nodes = X_init.shape[0]
+
+    X_nodes_now = nodes_feat[t,:,:]  #pos, speeds, P on col 0 to 6
+    X_nodes_past = nodes_feat[t-1,:,:]
+    X_nodes_future = nodes_feat[t+1,:,:]
+    
+    accelerations = torch.zeros((N_nodes, 3))  #acceleration column 7 to 9
+    accelerations[:,:] =  (X_nodes_now[:,3:6] -  X_nodes_past[:,3:6])/0.01
+    time_steps=torch.full((N_nodes, 1), t)   #time on column 10
+    wall_mask = torch.norm(X_nodes_t[:,3:6], p=2, dim=1, keepdim=True) > 1e-10  #wall on column 11
+    inflow_mask = ((X_nodes_t[:, 1] < 1e-2) & (X_init[:,4] > 0)).unsqueeze(-1)  #inflow on column 12
+
+    if replace_inflow:
+        X_nodes_replace = X_nodes_now.clone()
+        X_nodes_replace[inflow_mask] = X_nodes_future[inflow_mask]
+        X_nodes_t = torch.cat([X_nodes_replace, accelerations, time_steps, wall_mask, inflow_mask], dim=-1)
+    else:
+        X_nodes_t = torch.cat([X_nodes_now, accelerations, time_steps, wall_mask, inflow_mask], dim=-1)
+    
+    return X_nodes_t, edges_index, X_nodes_future[:,3:7]
+
 
 def get_X_y_acc(mesh_id: str, time_step: int, data_dir=DATA_DIR) -> torch.Tensor:
     """

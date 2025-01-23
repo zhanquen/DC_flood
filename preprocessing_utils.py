@@ -282,6 +282,36 @@ def convert_xdmf_to_torch(folder_path, out_dir):
         torch.save({'nodes': X_nodes, 'edges': X_edges}, new_filepath)
         #torch.load(new_filepath)
 
+def get_inflow_idx(y_tsr, v_y_tsr):    
+    """
+    Identify the indices of inflow points in the given tensors.
+
+    Parameters:
+    y_tsr (torch.Tensor): A tensor representing some quantity, where inflow is defined as values less than 1e-2.
+    v_y_tsr (torch.Tensor): A tensor representing velocity, where inflow is defined as values greater than 0.
+
+    Returns:
+    torch.Tensor: A tensor containing the indices of the inflow points.
+    """
+    inflow = (y_tsr < 1e-2) & (v_y_tsr > 0)
+    inflow_idx = torch.where(inflow)[0]
+    return inflow_idx
+
+def get_wall_idx(speeds_tsr):    
+    """
+    Identify the indices of wall (border) elements in a tensor of speeds.
+
+    Args:
+        speeds_tsr (torch.Tensor): A tensor containing speed vectors.
+
+    Returns:
+        torch.Tensor: A tensor containing the indices of elements where the speed is effectively zero (considered as walls).
+    """
+    velocities = torch.norm(speeds_tsr, p=2, dim=1)
+    border = velocities < 1e-10
+    border_idx = torch.where(border)[0]
+    return border_idx
+
 if __name__ == "__main__":
     folder_path = CWD / "4Students_AnXplore03"
     xdmf_files = list(folder_path.glob("*.xdmf"))

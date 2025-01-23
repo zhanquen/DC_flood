@@ -148,8 +148,8 @@ def get_X_y_with_inflow(mesh_id: str, t: int, data_dir=DATA_DIR, replace_inflow=
     accelerations = torch.zeros((N_nodes, 3))  #acceleration column 7 to 9
     accelerations[:,:] =  (X_nodes_now[:,3:6] -  X_nodes_past[:,3:6])/0.01
     time_steps=torch.full((N_nodes, 1), t)   #time on column 10
-    wall_mask = torch.norm(X_nodes_t[:,3:6], p=2, dim=1, keepdim=True) > 1e-10  #wall on column 11
-    inflow_mask = ((X_nodes_t[:, 1] < 1e-2) & (X_init[:,4] > 0)).unsqueeze(-1)  #inflow on column 12
+    wall_mask = torch.norm(X_init[:,3:6], p=2, dim=1, keepdim=True) > 1e-10  #wall on column 11
+    inflow_mask = ((X_init[:, 1] < 1e-2) & (X_init[:,4] > 0)).unsqueeze(-1)  #inflow on column 12
 
     if replace_inflow:
         X_nodes_replace = X_nodes_now.clone()

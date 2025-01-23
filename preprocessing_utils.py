@@ -77,6 +77,23 @@ def raw_to_torch(meshes : List[meshio.Mesh]) -> List[torch.Tensor]:
     X_nodes = torch.stack(X_nodes, dim=0)  # [num_timesteps-1, num_nodes, num_features]  at t
     return X_nodes, X_edges
 
+def torch_to_meshes(vP_tensor: torch.Tensor, src_filepath) -> meshio.Mesh:
+    """
+    Converts PyTorch tensors back into a meshio Mesh object.
+
+    Parameters:
+    vP_tensor (torch.Tensor): A tensor containing the node velocity, and pressure data. (T, N, 4)
+    src_filepath (str): The path to the source xdmf file.
+    Returns:
+    meshio.Mesh: A meshio Mesh object containing the mesh data.
+    """
+    meshes = xdmf_to_meshes(src_filepath, verbose=False)
+    velocities = vP_tensor[:, 0:3]
+    pressures = vP_tensor[:, 4]
+    for i in range(len(meshes)):
+        meshes[i].point_data = {"Vitesse": np.array(velocities[i]), "Pression": np.array(pressures[i])}
+    return meshes
+
 def get_X_y_acc_type(mesh_id: str, time_step: int, data_dir=DATA_DIR) -> torch.Tensor:
     """
     Extracts and processes node and edge data from a preprocessed mesh file for a given time step.

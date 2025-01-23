@@ -88,8 +88,8 @@ def torch_to_meshes(vP_tensor: torch.Tensor, src_filepath) -> meshio.Mesh:
     meshio.Mesh: A meshio Mesh object containing the mesh data.
     """
     meshes = xdmf_to_meshes(src_filepath, verbose=False)
-    velocities = vP_tensor[:, 0:3]
-    pressures = vP_tensor[:, 4]
+    velocities = vP_tensor[:, :,0:3]
+    pressures = vP_tensor[:, :,3]
     for i in range(len(meshes)):
         meshes[i].point_data = {"Vitesse": np.array(velocities[i]), "Pression": np.array(pressures[i])}
     return meshes
@@ -153,7 +153,7 @@ def get_X_y_with_inflow(mesh_id: str, t: int, data_dir=DATA_DIR, replace_inflow=
 
     if replace_inflow:
         X_nodes_replace = X_nodes_now.clone()
-        X_nodes_replace[inflow_mask] = X_nodes_future[inflow_mask]
+        X_nodes_replace[inflow_mask.squeeze(-1)] = X_nodes_future[inflow_mask.squeeze(-1)]
         X_nodes_t = torch.cat([X_nodes_replace, accelerations, time_steps, wall_mask, inflow_mask], dim=-1)
     else:
         X_nodes_t = torch.cat([X_nodes_now, accelerations, time_steps, wall_mask, inflow_mask], dim=-1)

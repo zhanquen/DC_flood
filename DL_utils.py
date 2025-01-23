@@ -60,29 +60,58 @@ class MeshDataset(Dataset):
 
 
 from tqdm import tqdm
+import torch
+import torch.nn.functional as F
+from torch.utils.data import DataLoader
+from tqdm import tqdm
 
-def train_model(model, optimizer, mesh_ids, epochs=1000, batch_size=1, features_method=get_X_y, **kwargs):
-    dataset = MeshDataset(mesh_ids, features_method = features_method) 
+# Vérification de la disponibilité de MPS ou bascule sur CPU
+
+from collections import deque
+import torch.nn.functional as F
+from tqdm import tqdm
+from torch.utils.data import DataLoader
+
+def train_model(model, optimizer, mesh_ids, epochs=1000, batch_size=1, features_method=get_X_y, device="cpu",
+                save = False, **kwargs):
+    model.to(device)  # Déplacer le modèle sur le GPU MPS
+    dataset = MeshDataset(mesh_ids, features_method=features_method) 
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    
     loss_array = []
+    sliding_window = deque(maxlen=100)  # File d'attente pour la moyenne glissante
+
     for epoch in range(epochs):
         with tqdm(total=len(dataloader), desc=f'Epoch {epoch + 1}/{epochs}', unit='batch') as pbar:
             for X_nodes, X_edges, edge_weights, y in dataloader:
+                # Déplacer les données sur MPS
+                X_nodes = X_nodes.to(device)
+                X_edges = X_edges.to(device).squeeze()
+                edge_weights = edge_weights.to(device).squeeze()
+                y = y.to(device)
+                
                 optimizer.zero_grad()
-                out = model(X_nodes, X_edges.squeeze(), edge_weights.squeeze())
+                out = model(X_nodes, X_edges, edge_weights)
                 loss = F.mse_loss(out, y)
                 loss.backward()
                 optimizer.step()
 
                 loss_array.append(loss.item())
-                pbar.set_postfix(loss=loss.item())
+                sliding_window.append(loss.item())
+                
+                # Calculer la moyenne glissante
+                sliding_mean = sum(sliding_window) / len(sliding_window)
+                
+                pbar.set_postfix(loss=sliding_mean)
                 pbar.update(1)
+
+        # Libérer la mémoire MPS après chaque epoch
+        torch.mps.empty_cache()
 
     return loss_array
 
-# Train the model
-
-def evaluate_model(model, mesh_ids, batch_size=1 ,features_method=get_X_y, **kwargs):
+def evaluate_model(model, mesh_ids, batch_size=1, features_method=get_X_y,device = "cpu", **kwargs):
+    model.to(device)  # Déplacer le modèle sur le GPU MPS
     model.eval()
     dataset = MeshDataset(mesh_ids, features_method=features_method)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
@@ -90,7 +119,13 @@ def evaluate_model(model, mesh_ids, batch_size=1 ,features_method=get_X_y, **kwa
     total_loss = 0
     with torch.no_grad():
         for X_nodes, X_edges, edge_weights, y in dataloader:
-            y_pred = model(X_nodes, X_edges.squeeze(), edge_weights.squeeze())
+            # Déplacer les données sur MPS
+            X_nodes = X_nodes.to(device)
+            X_edges = X_edges.to(device).squeeze()
+            edge_weights = edge_weights.to(device).squeeze()
+            y = y.to(device)
+
+            y_pred = model(X_nodes, X_edges, edge_weights)
             loss = F.mse_loss(y_pred, y)
             total_loss += loss.item()
 

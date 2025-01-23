@@ -252,6 +252,19 @@ def get_edges_dir_info(X_nodes, X_edges_undir):
     edges_attr = create_edge_attributes(X_nodes, edges_index_dir)
     return edges_index_dir, edges_attr
 
+def convert_xdmf_to_torch(folder_path, out_dir):
+    xdmf_files = list(folder_path.glob("*.xdmf"))
+    if not out_dir.exists():
+        out_dir.mkdir(exist_ok=True)
+    for xdmf_fp in tqdm(xdmf_files):
+        extension = xdmf_fp.name.split("_")[-1]
+        mesh_id = extension[:-5]
+        new_filepath = out_dir / f"mesh_{mesh_id}.pth"
+        meshes = xdmf_to_meshes(str(xdmf_fp), verbose=False)
+        X_nodes, X_edges = raw_to_torch(meshes)
+        torch.save({'nodes': X_nodes, 'edges': X_edges}, new_filepath)
+        #torch.load(new_filepath)
+
 if __name__ == "__main__":
     folder_path = CWD / "4Students_AnXplore03"
     xdmf_files = list(folder_path.glob("*.xdmf"))
